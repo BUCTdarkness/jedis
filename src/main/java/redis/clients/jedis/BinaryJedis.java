@@ -1697,7 +1697,7 @@ public class BinaryJedis implements BasicCommands, BinaryJedisCommands, MultiKey
 
     protected void checkIsInMulti() {
 	if (client.isInMulti()) {
-	    throw new JedisDataException(
+			throw new JedisDataException(
 		    "Cannot use Jedis when in Multi. Please use JedisTransaction instead.");
 	}
     }
@@ -2860,6 +2860,7 @@ public class BinaryJedis implements BasicCommands, BinaryJedisCommands, MultiKey
      */
     public void monitor(final JedisMonitor jedisMonitor) {
 	client.monitor();
+	client.getStatusCodeReply();
 	jedisMonitor.proceed(client);
     }
 
@@ -3139,12 +3140,13 @@ public class BinaryJedis implements BasicCommands, BinaryJedisCommands, MultiKey
 
     private byte[][] getParams(List<byte[]> keys, List<byte[]> args) {
 	int keyCount = keys.size();
+	int argCount = args.size();
 	byte[][] params = new byte[keyCount + args.size()][];
 
 	for (int i = 0; i < keyCount; i++)
 	    params[i] = keys.get(i);
 
-	for (int i = 0; i < keys.size(); i++)
+	for (int i = 0; i < argCount; i++)
 	    params[keyCount + i] = args.get(i);
 
 	return params;
@@ -3173,12 +3175,23 @@ public class BinaryJedis implements BasicCommands, BinaryJedisCommands, MultiKey
         client.evalsha(sha1, 0);
         return client.getOne();
     }
+		
+		public Object evalsha(byte[] sha1, List<byte[]> keys, List<byte[]> args) {
 
-    public Object evalsha(byte[] sha1, List<byte[]> keys, List<byte[]> args) {
-        client.setTimeoutInfinite();
-        client.evalsha(sha1, keys.size(), keys.toArray(new byte[0][]));
-        return client.getOne();
-    }
+			int keyCount = keys == null ? 0 : keys.size();
+			int argCount = args == null ? 0 : args.size();
+
+			byte[][] params = new byte[keyCount + argCount][];
+
+			for (int i = 0; i < keyCount; i++)
+				params[i] = keys.get(i);
+
+			for (int i = 0; i < argCount; i++)
+				params[keyCount + i] = args.get(i);
+
+
+			return evalsha(sha1, keyCount, params);
+		}
 
     public Object evalsha(byte[] sha1, int keyCount, byte[]... params) {
         client.setTimeoutInfinite();
@@ -3352,6 +3365,19 @@ public class BinaryJedis implements BasicCommands, BinaryJedisCommands, MultiKey
     	client.hincrByFloat(key, field, increment);
     	String relpy = client.getBulkReply();
     	return (relpy != null ? new Double(relpy) : null);
+    }
+
+    /**
+     * Syncrhonous replication of Redis as described here:
+     * http://antirez.com/news/66
+     * 
+     * Since Java Object class has implemented "wait" method, we cannot use it,
+     * so I had to change the name of the method. Sorry :S
+     */
+    public Long waitReplicas(int replicas, long timeout) {
+    	checkIsInMulti();
+    	client.waitReplicas(replicas, timeout);
+    	return client.getIntegerReply();
     }
 
 }
