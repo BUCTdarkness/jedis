@@ -633,9 +633,9 @@ public class JedisCluster implements JedisCommands, BasicCommands {
 	    }
 	}.run(key);
     }
-
+    
     @Override
-    public Long zadd(final String key, final Map<Double, String> scoreMembers) {
+    public Long zadd(final String key, final Map<String, Double> scoreMembers) {
 	return new JedisClusterCommand<Long>(connectionHandler, timeout,
 		maxRedirections) {
 	    @Override
@@ -1429,4 +1429,5 @@ public class JedisCluster implements JedisCommands, BasicCommands {
 	    }
 	}.run(null);
     }
+	
 }
